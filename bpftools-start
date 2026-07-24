@@ -57,6 +57,18 @@ if ! grep -q debugfs /proc/mounts; then
     mount -v -t debugfs none /sys/kernel/debug
 fi
 
+# Compute epoch-ms at boot for monotonic→epoch conversion in post-processor.
+# bpftrace nsecs is CLOCK_MONOTONIC (nanoseconds since boot), so:
+#   event_epoch_ms = boot_epoch_ms + event_nsecs / 1_000_000
+python3 -c "
+import time
+with open('/proc/uptime') as f:
+    uptime_s = float(f.read().split()[0])
+boot_epoch_ms = int(time.time() * 1000) - int(uptime_s * 1000)
+print(boot_epoch_ms)
+" > bpftrace-boot-epoch-ms.txt
+echo "bpftrace boot epoch ms: $(cat bpftrace-boot-epoch-ms.txt)"
+
 for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
     case "$subtool" in
         tcp-window)

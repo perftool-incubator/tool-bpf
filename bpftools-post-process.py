@@ -53,8 +53,22 @@ def open_maybe_xz(path: str):
     return open(path, "r")
 
 
+def _read_boot_epoch_ms() -> int:
+    """Read the boot epoch offset written by bpftools-start."""
+    ref_file = "bpftrace-boot-epoch-ms.txt"
+    try:
+        with open(ref_file) as f:
+            return int(f.read().strip())
+    except (FileNotFoundError, ValueError):
+        print(f"WARNING: {ref_file} not found or invalid — timestamps will be wrong")
+        return 0
+
+
 def process_tcp_window(log_file: str) -> None:
     print(f"Post-processing tcp-window: {log_file}")
+
+    boot_epoch_ms = _read_boot_epoch_ms()
+    print(f"boot_epoch_ms: {boot_epoch_ms}")
 
     METRICS = ("snd_cwnd", "ssthresh", "snd_wnd", "srtt_us", "rcv_wnd")
     # key: ((src, sport, dst, dport), bin_start_ms) -> {metric: [sum, count]}
@@ -89,7 +103,7 @@ def process_tcp_window(log_file: str) -> None:
             except (ValueError, IndexError):
                 continue
 
-            ts_ms = nsecs_rt // 1_000_000
+            ts_ms = boot_epoch_ms + nsecs_rt // 1_000_000
             bin_start_ms = (ts_ms // INTERVAL_MS) * INTERVAL_MS
             flow = (src, sport, dst, dport)
             b = bins[(flow, bin_start_ms)]

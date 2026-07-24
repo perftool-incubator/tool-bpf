@@ -9,8 +9,7 @@
  * the tracepoint, which carry sockaddr_in6 layout (family+port prefix)
  * not a raw IP.
  *
- * Requires: kernel with CONFIG_DEBUG_INFO_BTF=y, tcp:tcp_probe tracepoint,
- * and bpftrace >= 0.20 for nsecs(realtime).
+ * Requires: kernel with CONFIG_DEBUG_INFO_BTF=y and tcp:tcp_probe tracepoint.
  *
  * Output format (space-separated, one line per event):
  *   nsecs_realtime src sport dst dport snd_cwnd ssthresh snd_wnd srtt_us rcv_wnd
@@ -36,7 +35,7 @@ tracepoint:tcp:tcp_probe
 
     if (args->family == 2) {
         printf("%llu %s %u %s %u %u %u %u %u %u\n",
-            nsecs(realtime),
+            nsecs,
             ntop($sk->__sk_common.skc_rcv_saddr), args->sport,
             ntop($sk->__sk_common.skc_daddr),     args->dport,
             args->snd_cwnd,
@@ -46,7 +45,7 @@ tracepoint:tcp:tcp_probe
             args->rcv_wnd);
     } else if (args->family == 10) {
         printf("%llu %s %u %s %u %u %u %u %u %u\n",
-            nsecs(realtime),
+            nsecs,
             ntop($sk->__sk_common.skc_v6_rcv_saddr.in6_u.u6_addr8), args->sport,
             ntop($sk->__sk_common.skc_v6_daddr.in6_u.u6_addr8),     args->dport,
             args->snd_cwnd,
