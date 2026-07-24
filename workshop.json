@@ -1,0 +1,18 @@
+{
+    "workshop": { "schema": { "version": "2020.03.02" } },
+    "userenvs": [
+        {
+            "name": "default",
+            "requirements": ["distro-deps"]
+        }
+    ],
+    "requirements": [
+        {
+            "name": "distro-deps",
+            "type": "distro",
+            "distro_info": {
+                "packages": ["bpftrace", "clang", "libbpf", "libbpf-devel", "bpftool"]
+            }
+        }
+    ]
+}

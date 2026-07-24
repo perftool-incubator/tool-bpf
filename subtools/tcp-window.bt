@@ -1,0 +1,58 @@
+#!/usr/bin/bpftrace
+
+/*
+ * tcp-window: TCP congestion and flow-control state per connection.
+ *
+ * Uses tcp:tcp_probe, which fires on every segment received by
+ * tcp_rcv_established().  IP addresses are read from the sock struct
+ * via BTF (args->skaddr) rather than from the sockaddr byte arrays in
+ * the tracepoint, which carry sockaddr_in6 layout (family+port prefix)
+ * not a raw IP.
+ *
+ * Requires: kernel with CONFIG_DEBUG_INFO_BTF=y, tcp:tcp_probe tracepoint,
+ * and bpftrace >= 0.20 for nsecs(realtime).
+ *
+ * Output format (space-separated, one line per event):
+ *   nsecs_realtime src sport dst dport snd_cwnd ssthresh snd_wnd srtt_us rcv_wnd
+ *
+ *   nsecs_realtime  CLOCK_REALTIME nanoseconds (divide by 1e6 for epoch ms)
+ *   src / dst       IP address strings (IPv4 or IPv6)
+ *   sport / dport   ports in host byte order (local / remote)
+ *   snd_cwnd        congestion window (MSS units)
+ *   ssthresh        slow-start threshold (MSS units; 2147483647 = no limit)
+ *   snd_wnd         receiver-advertised window (bytes)
+ *   srtt_us         smoothed RTT (µs; kernel stores tp->srtt_us >> 3)
+ *   rcv_wnd         local receive window (bytes)
+ */
+
+BEGIN
+{
+    printf("# nsecs_realtime src sport dst dport snd_cwnd ssthresh snd_wnd srtt_us rcv_wnd\n");
+}
+
+tracepoint:tcp:tcp_probe
+{
+    $sk = (struct sock *)args->skaddr;
+
+    if (args->family == 2) {
+        printf("%llu %s %u %s %u %u %u %u %u %u\n",
+            nsecs(realtime),
+            ntop($sk->__sk_common.skc_rcv_saddr), args->sport,
+            ntop($sk->__sk_common.skc_daddr),     args->dport,
+            args->snd_cwnd,
+            args->ssthresh,
+            args->snd_wnd,
+            args->srtt,
+            args->rcv_wnd);
+    } else if (args->family == 10) {
+        printf("%llu %s %u %s %u %u %u %u %u %u\n",
+            nsecs(realtime),
+            ntop($sk->__sk_common.skc_v6_rcv_saddr.in6_u.u6_addr8), args->sport,
+            ntop($sk->__sk_common.skc_v6_daddr.in6_u.u6_addr8),     args->dport,
+            args->snd_cwnd,
+            args->ssthresh,
+            args->snd_wnd,
+            args->srtt,
+            args->rcv_wnd);
+    }
+}

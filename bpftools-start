@@ -1,0 +1,97 @@
+#!/bin/bash
+# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4 -*-
+# vim: autoindent tabstop=4 shiftwidth=4 expandtab softtabstop=4 filetype=bash
+
+exec >bpftools-start-stderrout.txt
+exec 2>&1
+
+echo "args:"
+for i in "$@"; do
+    printf "[%s]\n" "$i"
+done
+echo
+echo "pwd: $(pwd)"
+echo
+echo "hostname: $(hostname)"
+echo
+
+SUBTOOLS_DIR=/usr/local/share/bpftools/subtools
+
+# defaults
+subtools=""
+interval=10
+
+echo "Processing arguments"
+longopts="subtools:,interval:"
+opts=$(getopt -q -o "" --longoptions "$longopts" -n "getopt.sh" -- "$@")
+eval set -- "$opts"
+while true; do
+    arg="$1"
+    shift
+    val="$1"
+    shift
+    printf "arg: [%s]  val: [%s]\n" "$arg" "$val"
+    case "$arg" in
+        --subtools)
+            subtools=$val
+            echo "setting subtools=$subtools"
+            ;;
+        --interval)
+            interval=$val
+            echo "setting interval=$interval"
+            ;;
+        --)
+            break
+            ;;
+        *)
+            echo "Invalid option: $arg"
+            exit 1
+            ;;
+    esac
+done
+
+/bin/rm -f bpftools-pids.txt
+
+for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
+    case "$subtool" in
+        tcp-window)
+            echo "Starting bpftrace subtool: tcp-window"
+            bpftrace "${SUBTOOLS_DIR}/tcp-window.bt" \
+                > tcp-window-stdout.txt \
+                2> tcp-window-stderr.txt &
+            pid=$!
+            echo "tcp-window pid is $pid"
+            echo "$pid" >> bpftools-pids.txt
+            ;;
+        gro)
+            echo "Starting bpftrace subtool: gro"
+            bpftrace "${SUBTOOLS_DIR}/gro.bt" \
+                > gro-stdout.txt \
+                2> gro-stderr.txt &
+            pid=$!
+            echo "gro pid is $pid"
+            echo "$pid" >> bpftools-pids.txt
+            ;;
+        tcp-retrans)
+            echo "Starting bpftrace subtool: tcp-retrans"
+            bpftrace "${SUBTOOLS_DIR}/tcp-retrans.bt" \
+                > tcp-retrans-stdout.txt \
+                2> tcp-retrans-stderr.txt &
+            pid=$!
+            echo "tcp-retrans pid is $pid"
+            echo "$pid" >> bpftools-pids.txt
+            ;;
+        tcp-drop)
+            echo "Starting bpftrace subtool: tcp-drop"
+            bpftrace "${SUBTOOLS_DIR}/tcp-drop.bt" \
+                > tcp-drop-stdout.txt \
+                2> tcp-drop-stderr.txt &
+            pid=$!
+            echo "tcp-drop pid is $pid"
+            echo "$pid" >> bpftools-pids.txt
+            ;;
+        *)
+            echo "Invalid subtool: $subtool"
+            ;;
+    esac
+done

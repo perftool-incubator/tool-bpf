@@ -1,0 +1,53 @@
+{
+    "rickshaw-tool": {
+        "schema": {
+            "version": "2020.03.18"
+        }
+    },
+    "tool": "bpf",
+    "collector": {
+        "files-from-controller": [
+            {
+                "src": "%tool-dir%/bpftools-start",
+                "dest": "/usr/bin/"
+            },
+            {
+                "src": "%tool-dir%/bpftools-stop",
+                "dest": "/usr/bin/"
+            },
+            {
+                "src": "%tool-dir%/subtools/tcp-window.bt",
+                "dest": "/usr/local/share/bpftools/subtools/"
+            }
+        ],
+        "blacklist": [
+            {
+                "endpoint": "remotehosts",
+                "collector-types": [ "client", "server" ]
+            },
+            {
+                "endpoint": "kube",
+                "collector-types": [ "client", "server" ]
+            }
+        ],
+        "whitelist": [
+            {
+                "endpoint": "osp",
+                "collector-types": [ "compute" ]
+            },
+            {
+                "endpoint": "remotehosts",
+                "collector-types": [ "profiler" ]
+            },
+            {
+                "endpoint": "kube",
+                "collector-types": [ "profiler" ]
+            }
+        ],
+        "start": "bpftools-start",
+        "stop": "bpftools-stop"
+    },
+    "controller": {
+        "post-script": "%tool-dir%/bpftools-post-process.py"
+    }
+}
