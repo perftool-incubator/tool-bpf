@@ -54,14 +54,19 @@ def open_maybe_xz(path: str):
 
 
 def _read_boot_epoch_ms() -> int:
-    """Read the boot epoch offset written by bpftools-start."""
-    ref_file = "bpftrace-boot-epoch-ms.txt"
-    try:
-        with open(ref_file) as f:
-            return int(f.read().strip())
-    except (FileNotFoundError, ValueError):
-        print(f"WARNING: {ref_file} not found or invalid — timestamps will be wrong")
-        return 0
+    """Read the boot epoch offset written by bpftools-start (may be xz-compressed)."""
+    for path, opener in (
+        ("bpftrace-boot-epoch-ms.txt.xz", lzma.open),
+        ("bpftrace-boot-epoch-ms.txt",    open),
+    ):
+        if Path(path).exists():
+            try:
+                with opener(path, "rt") as f:
+                    return int(f.read().strip())
+            except (ValueError, OSError):
+                pass
+    print("WARNING: bpftrace-boot-epoch-ms.txt[.xz] not found or invalid — timestamps will be wrong")
+    return 0
 
 
 def process_tcp_window(log_file: str) -> None:
