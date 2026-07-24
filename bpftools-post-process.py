@@ -53,6 +53,14 @@ def open_maybe_xz(path: str):
     return open(path, "r")
 
 
+def _normalize_addr(addr: str) -> str:
+    """Strip IPv4-mapped IPv6 prefix (::ffff:x.x.x.x -> x.x.x.x)."""
+    prefix = "::ffff:"
+    if addr.lower().startswith(prefix):
+        return addr[len(prefix):]
+    return addr
+
+
 def _read_boot_epoch_ms() -> int:
     """Read the boot epoch offset written by bpftools-start (may be xz-compressed)."""
     for path, opener in (
@@ -96,9 +104,9 @@ def process_tcp_window(log_file: str) -> None:
 
             try:
                 nsecs_rt  = int(parts[0])
-                src       = parts[1]
+                src       = _normalize_addr(parts[1])
                 sport     = int(parts[2])
-                dst       = parts[3]
+                dst       = _normalize_addr(parts[3])
                 dport     = int(parts[4])
                 snd_cwnd  = int(parts[5])
                 ssthresh  = int(parts[6])
