@@ -7,7 +7,7 @@
 Runs in the bpf tool's data directory (one per profiler instance).
 Dispatches to per-subtool handlers based on which output files exist.
 
-Subtool output files follow the naming convention: <subtool>-stdout.txt
+Subtool output files: <subtool>-stdout.txt or <subtool>-stdout.txt.xz
 
 Metrics emitted
 ---------------
@@ -19,12 +19,13 @@ Per TCP flow (src, sport, dst, dport breakouts):
   tcp-window:srtt          latency      microseconds
   tcp-window:rcv-wnd       throughput   bytes
 
-  sport/dport in the tcp:tcp_probe tracepoint are local/remote ports
-  from the socket's perspective (local = bound port, remote = peer port).
+  sport/dport from tcp:tcp_probe are local/remote ports from the
+  socket's perspective (local = bound port, remote = peer port).
 """
 
 from __future__ import annotations
 
+import lzma
 import os
 import re
 import sys
@@ -32,87 +33,83 @@ from collections import defaultdict
 from pathlib import Path
 
 TOOLBOX_HOME = os.environ.get("TOOLBOX_HOME")
-if TOOLBOX_HOME:
-    sys.path.append(str(Path(TOOLBOX_HOME) / "python"))
+if TOOLBOX_HOME is None:
+    print("This script requires libraries from the toolbox project.")
+    print("Set TOOLBOX_HOME to the toolbox directory and retry.")
+    sys.exit(1)
+sys.path.append(str(Path(TOOLBOX_HOME) / "python"))
 
-from toolbox.cdm_metrics import CDMMetrics
-from toolbox.fileio import open_read_text_file
+from toolbox.metrics import log_sample, finish_samples
 
-INTERVAL_MS = 1000  # aggregate bpftrace per-event data into 1-second CDM samples
+FILE_ID = "0"
+INTERVAL_MS = 1000  # bin per-event bpftrace data into 1-second CDM samples
 
 SOURCE_TCP_WINDOW = "tcp-window"
 
-SSTHRESH_UNLIMITED = 2147483647  # INT_MAX: no congestion has set a threshold
+
+def open_maybe_xz(path: str):
+    if path.endswith(".xz"):
+        return lzma.open(path, "rt")
+    return open(path, "r")
 
 
 def process_tcp_window(log_file: str) -> None:
     print(f"Post-processing tcp-window: {log_file}")
 
-    try:
-        fh, _ = open_read_text_file(log_file)
-    except FileNotFoundError:
-        print(f"ERROR: could not open {log_file}")
-        return
-
-    # Accumulate per-interval sums and counts keyed by (flow_tuple, bin_start_ms).
-    # flow_tuple = (src, sport, dst, dport)
-    # Each value is a dict: metric_name -> [sum, count]
     METRICS = ("snd_cwnd", "ssthresh", "snd_wnd", "srtt_us", "rcv_wnd")
+    # key: ((src, sport, dst, dport), bin_start_ms) -> {metric: [sum, count]}
     bins: dict[tuple, dict[str, list]] = defaultdict(
         lambda: {m: [0.0, 0] for m in METRICS}
     )
 
-    for raw_line in fh:
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
+    with open_maybe_xz(log_file) as fh:
+        for raw_line in fh:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
 
-        parts = line.split()
-        if len(parts) != 10:
-            continue
+            parts = line.split()
+            if len(parts) != 10:
+                continue
 
-        try:
-            nsecs_rt, src, sport, dst, dport, snd_cwnd, ssthresh, snd_wnd, srtt_us, rcv_wnd = parts
-            ts_ms      = int(nsecs_rt) // 1_000_000
-            sport      = int(sport)
-            dport      = int(dport)
-            snd_cwnd   = int(snd_cwnd)
-            ssthresh   = int(ssthresh)
-            snd_wnd    = int(snd_wnd)
-            srtt_us    = int(srtt_us)
-            rcv_wnd    = int(rcv_wnd)
-        except (ValueError, IndexError):
-            continue
+            try:
+                nsecs_rt  = int(parts[0])
+                src       = parts[1]
+                sport     = int(parts[2])
+                dst       = parts[3]
+                dport     = int(parts[4])
+                snd_cwnd  = int(parts[5])
+                ssthresh  = int(parts[6])
+                snd_wnd   = int(parts[7])
+                srtt_us   = int(parts[8])
+                rcv_wnd   = int(parts[9])
+            except (ValueError, IndexError):
+                continue
 
-        bin_start_ms = (ts_ms // INTERVAL_MS) * INTERVAL_MS
-        flow = (src, sport, dst, dport)
-        key = (flow, bin_start_ms)
-
-        b = bins[key]
-        for metric, val in (
-            ("snd_cwnd",  snd_cwnd),
-            ("ssthresh",  ssthresh),
-            ("snd_wnd",   snd_wnd),
-            ("srtt_us",   srtt_us),
-            ("rcv_wnd",   rcv_wnd),
-        ):
-            b[metric][0] += val
-            b[metric][1] += 1
-
-    fh.close()
+            ts_ms = nsecs_rt // 1_000_000
+            bin_start_ms = (ts_ms // INTERVAL_MS) * INTERVAL_MS
+            flow = (src, sport, dst, dport)
+            b = bins[(flow, bin_start_ms)]
+            for metric, val in (
+                ("snd_cwnd", snd_cwnd),
+                ("ssthresh", ssthresh),
+                ("snd_wnd",  snd_wnd),
+                ("srtt_us",  srtt_us),
+                ("rcv_wnd",  rcv_wnd),
+            ):
+                b[metric][0] += val
+                b[metric][1] += 1
 
     if not bins:
         print("WARNING: no tcp-window data found in output file")
         return
 
-    metrics = CDMMetrics()
-
     CDM_METRICS = [
-        ("snd_cwnd",  "snd-cwnd", "throughput"),
-        ("ssthresh",  "ssthresh", "throughput"),
-        ("snd_wnd",   "snd-wnd",  "throughput"),
-        ("srtt_us",   "srtt",     "latency"),
-        ("rcv_wnd",   "rcv-wnd",  "throughput"),
+        ("snd_cwnd", "snd-cwnd", "throughput"),
+        ("ssthresh", "ssthresh", "throughput"),
+        ("snd_wnd",  "snd-wnd",  "throughput"),
+        ("srtt_us",  "srtt",     "latency"),
+        ("rcv_wnd",  "rcv-wnd",  "throughput"),
     ]
 
     for (flow, bin_start_ms), b in sorted(bins.items()):
@@ -124,13 +121,10 @@ def process_tcp_window(log_file: str) -> None:
             "dst":   dst,
             "dport": str(dport),
         }
-
         for raw_name, cdm_type, cdm_class in CDM_METRICS:
             total, count = b[raw_name]
             if count == 0:
                 continue
-            avg_val = total / count
-
             desc = {
                 "source": SOURCE_TCP_WINDOW,
                 "class":  cdm_class,
@@ -139,11 +133,11 @@ def process_tcp_window(log_file: str) -> None:
             sample = {
                 "begin": bin_start_ms,
                 "end":   bin_end_ms,
-                "value": avg_val,
+                "value": total / count,
             }
-            metrics.log_sample(SOURCE_TCP_WINDOW, desc, names, sample)
+            log_sample(FILE_ID, desc, names, sample)
 
-    metrics.finish_samples()
+    finish_samples()
     print("Post-processing for tcp-window complete")
 
 
