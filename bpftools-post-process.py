@@ -68,6 +68,9 @@ def process_tcp_window(log_file: str) -> None:
             if not line or line.startswith("#"):
                 continue
 
+            # Skip bpftrace status/error lines mixed into stdout
+            if line.startswith("Attaching") or line.startswith("ERROR") or line.startswith("WARNING") or line.startswith("HINT"):
+                continue
             parts = line.split()
             if len(parts) != 10:
                 continue

@@ -52,13 +52,18 @@ done
 
 /bin/rm -f bpftools-pids.txt
 
+if ! grep -q debugfs /proc/mounts; then
+    echo "Mounting debugfs at /sys/kernel/debug"
+    mount -v -t debugfs none /sys/kernel/debug
+fi
+
 for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
     case "$subtool" in
         tcp-window)
             echo "Starting bpftrace subtool: tcp-window"
             bpftrace "${SUBTOOLS_DIR}/tcp-window.bt" \
                 > tcp-window-stdout.txt \
-                2> tcp-window-stderr.txt &
+                2>&1 &
             pid=$!
             echo "tcp-window pid is $pid"
             echo "$pid" >> bpftools-pids.txt
@@ -67,7 +72,7 @@ for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
             echo "Starting bpftrace subtool: gro"
             bpftrace "${SUBTOOLS_DIR}/gro.bt" \
                 > gro-stdout.txt \
-                2> gro-stderr.txt &
+                2>&1 &
             pid=$!
             echo "gro pid is $pid"
             echo "$pid" >> bpftools-pids.txt
@@ -76,7 +81,7 @@ for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
             echo "Starting bpftrace subtool: tcp-retrans"
             bpftrace "${SUBTOOLS_DIR}/tcp-retrans.bt" \
                 > tcp-retrans-stdout.txt \
-                2> tcp-retrans-stderr.txt &
+                2>&1 &
             pid=$!
             echo "tcp-retrans pid is $pid"
             echo "$pid" >> bpftools-pids.txt
@@ -85,7 +90,7 @@ for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
             echo "Starting bpftrace subtool: tcp-drop"
             bpftrace "${SUBTOOLS_DIR}/tcp-drop.bt" \
                 > tcp-drop-stdout.txt \
-                2> tcp-drop-stderr.txt &
+                2>&1 &
             pid=$!
             echo "tcp-drop pid is $pid"
             echo "$pid" >> bpftools-pids.txt
