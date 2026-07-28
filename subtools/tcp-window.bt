@@ -1,5 +1,7 @@
 #!/usr/bin/bpftrace
 
+#include <linux/in6.h>
+
 /*
  * tcp-window: TCP congestion and flow-control state per connection.
  *
