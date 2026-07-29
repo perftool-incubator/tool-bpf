@@ -1,0 +1,42 @@
+#!/usr/bin/bpftrace
+
+/*
+ * tx-burst: Trace every packet queued to a network interface with
+ *           nanosecond timestamp and byte count.
+ *
+ * Purpose: Detect micro-burst transmission patterns by recording each
+ * individual packet enqueue event.  From the raw (timestamp, bytes) stream,
+ * post-processing can reconstruct instantaneous throughput at any granularity
+ * (1ms, 100µs, etc.) and compute inter-packet gap histograms to determine
+ * whether the sender produces bursts that could overflow the receiver's
+ * NIC RX ring.
+ *
+ * Usage: bpftrace tx-burst.bt <interface>
+ *   bpftrace tx-burst.bt ens1f0np0
+ *
+ * Output format (one line per packet):
+ *   nsecs bytes
+ *
+ *   nsecs  CLOCK_MONOTONIC nanoseconds (convert to epoch via boot-epoch-ms)
+ *   bytes  total packet length in bytes (L2 including headers)
+ *
+ * Requires: CONFIG_DEBUG_INFO_BTF=y, net:net_dev_queue tracepoint.
+ */
+
+BEGIN
+{
+    @iface = str($1);
+    printf("# tx-burst: iface=%s\n", @iface);
+    printf("# nsecs bytes\n");
+}
+
+tracepoint:net:net_dev_queue
+/str(args->name) == @iface/
+{
+    printf("%llu %d\n", nsecs, args->len);
+}
+
+END
+{
+    clear(@iface);
+}

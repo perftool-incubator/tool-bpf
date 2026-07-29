@@ -20,9 +20,10 @@ SUBTOOLS_DIR=/usr/local/share/bpftools/subtools
 # defaults
 subtools=""
 interval=10
+iface="ens1f0np0"
 
 echo "Processing arguments"
-longopts="subtools:,interval:"
+longopts="subtools:,interval:,iface:"
 opts=$(getopt -q -o "" --longoptions "$longopts" -n "getopt.sh" -- "$@")
 eval set -- "$opts"
 while true; do
@@ -39,6 +40,10 @@ while true; do
         --interval)
             interval=$val
             echo "setting interval=$interval"
+            ;;
+        --iface)
+            iface=$val
+            echo "setting iface=$iface"
             ;;
         --)
             break
@@ -105,6 +110,15 @@ for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
                 2>&1 &
             pid=$!
             echo "tcp-drop pid is $pid"
+            echo "$pid" >> bpftools-pids.txt
+            ;;
+        tx-burst)
+            echo "Starting bpftrace subtool: tx-burst on iface=$iface"
+            bpftrace "${SUBTOOLS_DIR}/tx-burst.bt" "$iface" \
+                > tx-burst-stdout.txt \
+                2>&1 &
+            pid=$!
+            echo "tx-burst pid is $pid"
             echo "$pid" >> bpftools-pids.txt
             ;;
         *)

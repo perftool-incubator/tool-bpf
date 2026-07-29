@@ -18,6 +18,10 @@
             {
                 "src": "%tool-dir%/subtools/tcp-window.bt",
                 "dest": "/usr/local/share/bpftools/subtools/"
+            },
+            {
+                "src": "%tool-dir%/subtools/tx-burst.bt",
+                "dest": "/usr/local/share/bpftools/subtools/"
             }
         ],
         "blacklist": [
