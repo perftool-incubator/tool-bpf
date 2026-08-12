@@ -13,11 +13,11 @@ Metrics emitted
 ---------------
 Per TCP flow (src, sport, dst, dport breakouts):
 
-  tcp-window:snd-cwnd      throughput   segments (MSS units)
-  tcp-window:ssthresh      throughput   segments (MSS units)
-  tcp-window:snd-wnd       throughput   bytes
-  tcp-window:srtt          latency      microseconds
-  tcp-window:rcv-wnd       throughput   bytes
+  tcp-window:snd-cwnd      count     avg   segments (MSS units)
+  tcp-window:ssthresh      count     avg   segments (MSS units)
+  tcp-window:snd-wnd       count     avg   bytes
+  tcp-window:srtt          latency   avg   microseconds
+  tcp-window:rcv-wnd       count     avg   bytes
 
   sport/dport from tcp:tcp_probe are local/remote ports from the
   socket's perspective (local = bound port, remote = peer port).
@@ -135,11 +135,11 @@ def process_tcp_window(log_file: str) -> None:
         return
 
     CDM_METRICS = [
-        ("snd_cwnd", "snd-cwnd", "throughput"),
-        ("ssthresh", "ssthresh", "throughput"),
-        ("snd_wnd",  "snd-wnd",  "throughput"),
-        ("srtt_us",  "srtt",     "latency"),
-        ("rcv_wnd",  "rcv-wnd",  "throughput"),
+        ("snd_cwnd", "snd-cwnd", "count",   "avg"),
+        ("ssthresh", "ssthresh", "count",   "avg"),
+        ("snd_wnd",  "snd-wnd",  "count",   "avg"),
+        ("srtt_us",  "srtt",     "latency", "avg"),
+        ("rcv_wnd",  "rcv-wnd",  "count",   "avg"),
     ]
 
     for (flow, bin_start_ms), b in sorted(bins.items()):
@@ -151,14 +151,15 @@ def process_tcp_window(log_file: str) -> None:
             "dst":   dst,
             "dport": str(dport),
         }
-        for raw_name, cdm_type, cdm_class in CDM_METRICS:
+        for raw_name, cdm_type, cdm_class, cdm_agg in CDM_METRICS:
             total, count = b[raw_name]
             if count == 0:
                 continue
             desc = {
-                "source": SOURCE_TCP_WINDOW,
-                "class":  cdm_class,
-                "type":   cdm_type,
+                "source":              SOURCE_TCP_WINDOW,
+                "class":               cdm_class,
+                "type":                cdm_type,
+                "default-aggregation": cdm_agg,
             }
             sample = {
                 "begin": bin_start_ms,
