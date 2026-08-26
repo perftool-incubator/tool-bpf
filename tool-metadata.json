@@ -1,0 +1,41 @@
+{
+  "rickshaw-tool-metadata": {
+    "schema": {
+      "version": "2026.08.11"
+    }
+  },
+  "tool": "bpf",
+  "description": "Kernel-level tracing and performance analysis using bpftrace scripts (TCP congestion window, socket queueing, network burst analysis).",
+  "subtools": [
+    {
+      "name": "tcp-window",
+      "description": "Captures TCP congestion control and flow control state per connection (snd-cwnd, ssthresh, snd-wnd, srtt, rcv-wnd) via the tcp:tcp_probe tracepoint.",
+      "cdm_indexed": true,
+      "cdm_sources": [
+        {
+          "source": "tcp-window",
+          "types": [
+            "snd-cwnd",
+            "ssthresh",
+            "snd-wnd",
+            "srtt",
+            "rcv-wnd"
+          ]
+        }
+      ],
+      "output_files": [
+        "tcp-window-stdout.txt.xz",
+        "bpftrace-boot-epoch-ms.txt.xz"
+      ]
+    },
+    {
+      "name": "tx-burst",
+      "description": "Traces individual packet enqueue events with nanosecond timestamps and packet lengths on a specified network interface via the net:net_dev_queue tracepoint to detect micro-burst transmission patterns.",
+      "cdm_indexed": false,
+      "output_files": [
+        "tx-burst-stdout.txt.xz",
+        "bpftrace-boot-epoch-ms.txt.xz"
+      ]
+    }
+  ]
+}
