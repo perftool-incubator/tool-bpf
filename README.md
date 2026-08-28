@@ -52,7 +52,7 @@ IP addresses are read from the sock struct via BTF (`args->skaddr`) rather than 
 Multiple subtools:
 
 ```json
-{ "arg": "subtools", "val": "tcp-window,gro,tcp-retrans" }
+{ "arg": "subtools", "val": "tcp-window,tx-burst" }
 ```
 
 ## Adding a new subtool

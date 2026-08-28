@@ -85,33 +85,6 @@ for subtool in $(echo "$subtools" | sed -e 's/,/ /g'); do
             echo "tcp-window pid is $pid"
             echo "$pid" >> bpftools-pids.txt
             ;;
-        gro)
-            echo "Starting bpftrace subtool: gro"
-            bpftrace "${SUBTOOLS_DIR}/gro.bt" \
-                > gro-stdout.txt \
-                2>&1 &
-            pid=$!
-            echo "gro pid is $pid"
-            echo "$pid" >> bpftools-pids.txt
-            ;;
-        tcp-retrans)
-            echo "Starting bpftrace subtool: tcp-retrans"
-            bpftrace "${SUBTOOLS_DIR}/tcp-retrans.bt" \
-                > tcp-retrans-stdout.txt \
-                2>&1 &
-            pid=$!
-            echo "tcp-retrans pid is $pid"
-            echo "$pid" >> bpftools-pids.txt
-            ;;
-        tcp-drop)
-            echo "Starting bpftrace subtool: tcp-drop"
-            bpftrace "${SUBTOOLS_DIR}/tcp-drop.bt" \
-                > tcp-drop-stdout.txt \
-                2>&1 &
-            pid=$!
-            echo "tcp-drop pid is $pid"
-            echo "$pid" >> bpftools-pids.txt
-            ;;
         tx-burst)
             echo "Starting bpftrace subtool: tx-burst on iface=$iface"
             bpftrace "${SUBTOOLS_DIR}/tx-burst.bt" "$iface" \

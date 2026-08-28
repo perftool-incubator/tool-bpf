@@ -172,26 +172,8 @@ def process_tcp_window(log_file: str) -> None:
     print("Post-processing for tcp-window complete")
 
 
-def process_gro(log_file: str) -> None:
-    print(f"Post-processing gro: {log_file}")
-    # TODO: implement
-
-
-def process_tcp_retrans(log_file: str) -> None:
-    print(f"Post-processing tcp-retrans: {log_file}")
-    # TODO: implement
-
-
-def process_tcp_drop(log_file: str) -> None:
-    print(f"Post-processing tcp-drop: {log_file}")
-    # TODO: implement
-
-
 SUBTOOL_HANDLERS = {
-    "tcp-window":  process_tcp_window,
-    "gro":         process_gro,
-    "tcp-retrans": process_tcp_retrans,
-    "tcp-drop":    process_tcp_drop,
+    "tcp-window": process_tcp_window,
 }
 
 
