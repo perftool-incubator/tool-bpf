@@ -4,6 +4,13 @@ eBPF-based data collection tool for the [crucible](https://github.com/perftool-i
 
 Collects kernel-level metrics using [bpftrace](https://github.com/bpftrace/bpftrace) scripts and compiled [libbpf CO-RE](https://github.com/libbpf/libbpf) programs. Runs as a passive profiler alongside benchmarks and emits results in the [CommonDataModel](https://github.com/perftool-incubator/CommonDataModel) format.
 
+## CommonDataModel dependency
+
+The post-processor emits the `disallowed-aggregations` metric descriptor field
+for TCP round-trip time. Deployments must use a CommonDataModel version that
+supports this field; support was added by [CommonDataModel PR #210](https://github.com/perftool-incubator/CommonDataModel/pull/210).
+Older strict metric descriptor mappings may reject the field during ingestion.
+
 ## Requirements
 
 - Kernel with `CONFIG_DEBUG_INFO_BTF=y` (provides `/sys/kernel/btf/vmlinux`)
